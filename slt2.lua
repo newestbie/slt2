@@ -8,6 +8,10 @@
 --
 -- @Copyright
 -- Copyright (C) 2012 henix.
+
+-- momo
+-- 2013-06-23
+-- Replaced stand IO to asynchronous IO of Nginx
 --]]
 
 local slt2 = {}
@@ -31,10 +35,9 @@ local function precompile(template, start_tag, end_tag)
 		do -- recursively include the file
 			local filename = assert(loadstring('return '..string.sub(template, end1 + 1, start2 - 1)))()
 			assert(filename)
-			local fin = assert(io.open(filename))
+	        local res = assert(ngx.location.capture(filename))
 			-- TODO: detect cyclic inclusion?
-			table.insert(result, precompile(fin:read('*a'), start_tag, end_tag))
-			fin:close()
+			table.insert(result, precompile(res.body, start_tag, end_tag))
 		end
 		start1, end1 = string.find(template, start_tag_inc, end2 + 1, true)
 	end
@@ -86,9 +89,8 @@ end
 
 -- @return function
 function slt2.loadfile(filename, start_tag, end_tag)
-	local fin = assert(io.open(filename))
-	local all = fin:read('*a')
-	fin:close()
+	local res = assert(ngx.location.capture(filename))
+	local all = res.body
 	local ret = slt2.loadstring(all, start_tag, end_tag, filename)
 	ret.name = filename
 	return ret
